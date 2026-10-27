@@ -9,6 +9,5 @@ spec:
     spec:
       containers:
         - name: iris
-          image: iris-ci:latest
-          imagePullPolicy: Never
+          image: huntzzzzz/iris-ci:latest
       restartPolicy: Never
