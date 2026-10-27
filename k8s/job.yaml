@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iris-ci-job
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      containers:
+        - name: iris
+          image: iris-ci:latest
+          imagePullPolicy: Never
+      restartPolicy: Never
