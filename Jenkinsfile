@@ -72,6 +72,31 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                    usernamePassword(credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')
+                ]) {
+                    sh '''
+                        set -eu
+
+                        JOB_NAME="iris-ci-job-${BUILD_NUMBER}"
+                        IMAGE_REF="${DH_USER}/${IMAGE}:${BUILD_NUMBER}"
+
+                        sed \
+                            -e "s/^  name: .*/  name: ${JOB_NAME}/" \
+                            -e "s|image: .*|image: ${IMAGE_REF}|" \
+                            k8s/job.yaml | kubectl apply -f -
+
+                        kubectl wait --for=condition=complete \
+                            --timeout=10m "job/${JOB_NAME}"
+                    '''
+                }
+            }
+        }
     }
 
     post {
