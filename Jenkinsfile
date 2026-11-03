@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE = 'iris-ci'
+        KUBECTL_VERSION = 'v1.37.0'
     }
 
     stages {
@@ -85,13 +86,29 @@ pipeline {
 
                         JOB_NAME="iris-ci-job-${BUILD_NUMBER}"
                         IMAGE_REF="${DH_USER}/${IMAGE}:${BUILD_NUMBER}"
+                        KUBECTL_PATH="${WORKSPACE}/.tools/kubectl"
+
+                        if command -v kubectl >/dev/null 2>&1; then
+                            KUBECTL="$(command -v kubectl)"
+                        else
+                            mkdir -p "${WORKSPACE}/.tools"
+                            curl -fsSLo "$KUBECTL_PATH" \
+                                "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                            curl -fsSLo "${KUBECTL_PATH}.sha256" \
+                                "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+                            printf '%s  %s\n' "$(cat "${KUBECTL_PATH}.sha256")" \
+                                "$KUBECTL_PATH" | sha256sum --check --status
+                            rm "${KUBECTL_PATH}.sha256"
+                            chmod +x "$KUBECTL_PATH"
+                            KUBECTL="$KUBECTL_PATH"
+                        fi
 
                         sed \
                             -e "s/^  name: .*/  name: ${JOB_NAME}/" \
                             -e "s|image: .*|image: ${IMAGE_REF}|" \
-                            k8s/job.yaml | kubectl apply -f -
+                            k8s/job.yaml | "$KUBECTL" apply -f -
 
-                        kubectl wait --for=condition=complete \
+                        "$KUBECTL" wait --for=condition=complete \
                             --timeout=10m "job/${JOB_NAME}"
                     '''
                 }
